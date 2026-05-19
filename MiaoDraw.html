@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiaoDraw — AI 图像生成工坊</title>
+<style>
+/*═══════════════════════════════════════════
+  RESET & VARIABLES
+═══════════════════════════════════════════*/
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0e0e14;--bg2:#16161e;--bg3:#1e1e2a;--bg4:#262636;
+  --surface:#1a1a24;--surface2:#222230;
+  --accent:#7c5cfc;--accent2:#9b7dff;--accent-glow:rgba(124,92,252,.25);
+  --ok:#34d399;--warn:#fbbf24;--err:#f87171;--info:#60a5fa;
+  --text:#e8e8f0;--text2:#9898b0;--text3:#606078;
+  --border:#2a2a3a;--border2:#333348;
+  --r:8px;--r2:12px;--shadow:0 4px 24px rgba(0,0,0,.5);
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  --mono:'SF Mono',Menlo,'Cascadia Code',Consolas,monospace;
+  --transition:all .18s ease;
+}
+html,body{height:100%;overflow:hidden;font:13px/1.5 var(--font);color:var(--text);background:var(--bg)}
+a{color:var(--accent2);text-decoration:none}
+button{font:inherit;cursor:pointer;border:none;outline:none}
+input,textarea,select{font:inherit;outline:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/*═══════════════════════════════════════════
+  LAYOUT
+═══════════════════════════════════════════*/
+#app{display:flex;flex-direction:column;height:100vh}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:44px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;z-index:50}
+.topbar .logo{font-size:17px;font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+.topbar .logo span{background:linear-gradient(135deg,var(--accent),#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar .logo em{font-style:normal;font-size:11px;color:var(--text3);font-weight:400}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+.main{display:flex;flex:1;overflow:hidden}
+
+/*═══════════════════════════════════════════
+  BUTTONS
+═══════════════════════════════════════════*/
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;border-radius:var(--r);font-size:12px;font-weight:500;transition:var(--transition);white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2);box-shadow:0 0 16px var(--accent-glow)}
+.btn-sec{background:var(--bg3);color:var(--text);border:1px solid var(--border)}.btn-sec:hover{background:var(--bg4);border-color:var(--border2)}
+.btn-ghost{background:transparent;color:var(--text2)}.btn-ghost:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.btn-danger{background:transparent;color:var(--err)}.btn-danger:hover{background:rgba(248,113,113,.1)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-lg{padding:10px 20px;font-size:14px;font-weight:600}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn-icon{width:32px;height:32px;padding:0;border-radius:var(--r)}
+.btn-icon svg{width:16px;height:16px}
+
+/*═══════════════════════════════════════════
+  LEFT PANEL
+═══════════════════════════════════════════*/
+.panel-l{width:320px;min-width:320px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-tab{flex:1;padding:10px 0;text-align:center;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:var(--transition)}
+.panel-tab:hover{color:var(--text2)}
+.panel-tab.on{color:var(--accent2);border-bottom-color:var(--accent)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.hidden{display:none !important}
+.panel-body.hidden{display:none}
+
+.field{margin-bottom:14px}
+.field-label{display:block;font-size:11px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.field input[type=text],.field input[type=password],.field input[type=number],.field textarea,.field select{width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;transition:var(--transition)}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+.field textarea{resize:vertical;font-family:var(--font);line-height:1.6}
+.field select option{background:var(--bg2);color:var(--text)}
+
+.row{display:flex;gap:8px;align-items:center}
+.row>.field{flex:1;margin-bottom:0}
+.row-wrap{flex-wrap:wrap}
+
+.chip-group{display:flex;gap:4px;flex-wrap:wrap}
+.chip{padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);color:var(--text2);transition:var(--transition);background:transparent}
+.chip:hover{border-color:var(--border2);color:var(--text)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.divider{height:1px;background:var(--border);margin:14px 0}
+
+/*═══════════════════════════════════════════
+  CENTER AREA
+═══════════════════════════════════════════*/
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.center-toolbar{display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.center-toolbar .sep{width:1px;height:22px;background:var(--border);margin:0 4px}
+.center-main{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;background:var(--bg);position:relative}
+
+.image-stage{position:relative;max-width:100%;max-height:100%}
+.image-stage img{max-width:100%;max-height:calc(100vh - 120px);object-fit:contain;border-radius:4px;display:block}
+.image-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text3);padding:40px;text-align:center}
+.image-placeholder svg{width:64px;height:64px;opacity:.3}
+.image-placeholder p{font-size:13px}
+
+/* Canvas overlay for drawing */
+.draw-canvas{position:absolute;inset:0;cursor:crosshair;display:none}
+.draw-canvas.on{display:block}
+
+/*═══════════════════════════════════════════
+  RIGHT PANEL
+═══════════════════════════════════════════*/
+.panel-r{width:300px;min-width:300px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-r-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-r-header h3{font-size:13px;font-weight:600}
+.panel-r-header .count{font-size:11px;color:var(--text3)}
+
+.gallery{flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}
+.gallery-item{position:relative;border-radius:6px;overflow:hidden;background:var(--surface);cursor:pointer;aspect-ratio:1}
+.gallery-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.gallery-item:hover img{transform:scale(1.05)}
+.gallery-item .gi-overlay{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:0;transition:opacity .15s}
+.gallery-item:hover .gi-overlay{opacity:1}
+.gallery-item .gi-prompt{position:absolute;bottom:0;left:0;right:0;padding:4px 6px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/*═══════════════════════════════════════════
+  TASK QUEUE
+═══════════════════════════════════════════*/
+.task-list{display:flex;flex-direction:column;gap:6px}
+.task-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)}
+.task-item .ti-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.task-item .ti-status.pending{background:var(--text3)}
+.task-item .ti-status.running{background:var(--warn);animation:pulse 1s infinite}
+.task-item .ti-status.done{background:var(--ok)}
+.task-item .ti-status.error{background:var(--err)}
+.task-item .ti-text{flex:1;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-item .ti-actions{display:flex;gap:2px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/*═══════════════════════════════════════════
+  MODALS
+═══════════════════════════════════════════*/
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(4px)}
+.modal-mask.on{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:24px;max-width:560px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal h2{font-size:17px;margin-bottom:16px;font-weight:600}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/*═══════════════════════════════════════════
+  PREVIEW
+═══════════════════════════════════════════*/
+.preview-mask{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:400;cursor:zoom-out}
+.preview-mask.on{display:flex}
+.preview-mask img{max-width:92vw;max-height:92vh;border-radius:8px;box-shadow:0 8px 60px rgba(0,0,0,.5)}
+
+/*═══════════════════════════════════════════
+  TOAST
+═══════════════════════════════════════════*/
+.toast-box{position:fixed;top:12px;right:12px;z-index:900;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 16px;border-radius:var(--r);font-size:12px;max-width:320px;animation:toastIn .2s;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow)}
+.toast.success{background:#065f46;color:#a7f3d0}.toast.error{background:#7f1d1d;color:#fecaca}.toast.info{background:var(--bg4);color:var(--text)}.toast.warn{background:#78350f;color:#fde68a}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/*═══════════════════════════════════════════
+  STATUS BAR
+═══════════════════════════════════════════*/
+.statusbar{display:flex;align-items:center;justify-content:space-between;padding:3px 12px;background:var(--bg2);border-top:1px solid var(--border);font-size:11px;color:var(--text3);flex-shrink:0}
+.statusbar .status-dot{width:6px;height:6px;border-radius:50%;margin-right:6px;display:inline-block}
+.statusbar .status-dot.ok{background:var(--ok)}.statusbar .status-dot.err{background:var(--err)}.statusbar .status-dot.idle{background:var(--text3)}
+
+/*═══════════════════════════════════════════
+  PROGRESS
+═══════════════════════════════════════════*/
+.progress{height:2px;background:var(--border);border-radius:1px;overflow:hidden;margin-top:8px}
+.progress.on{display:block}
+.progress .bar{height:100%;background:linear-gradient(90deg,var(--accent),#c084fc);width:30%;border-radius:1px;animation:progInd 1.5s ease-in-out infinite}
+@keyframes progInd{0%{width:10%;margin-left:0}50%{width:50%;margin-left:25%}100%{width:10%;margin-left:80%}}
+
+/*═══════════════════════════════════════════
+  PROMPT LAB DIALOG
+═══════════════════════════════════════════*/
+.lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.lab-card{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:var(--transition)}
+.lab-card:hover{border-color:var(--accent)}
+.lab-card img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.lab-card .lab-prompt{padding:6px 8px;font-size:11px;color:var(--text2);background:var(--surface)}
+
+/* Responsive */
+@media(max-width:1200px){.panel-l{width:280px;min-width:280px}.panel-r{width:260px;min-width:260px}}
+@media(max-width:900px){.panel-r{display:none}}
+
+/* Drop Zone */
+.drop-zone{position:relative;border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface);min-height:100px;display:flex;align-items:center;justify-content:center}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(99,102,241,.06)}
+.drop-zone.has-image{padding:4px;border-style:solid;min-height:auto}
+.drop-zone-sm{padding:14px;min-height:60px}
+.drop-zone-hint{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text3);font-size:12px}
+.drop-zone-hint svg{opacity:.5}
+.drop-zone-preview{width:100%;max-height:200px;object-fit:cover;border-radius:4px;display:block}
+.drop-zone-clear{position:absolute;top:4px;right:4px;width:22px;height:22px;border:none;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;z-index:1}
+.drop-zone-clear:hover{background:rgba(220,38,38,.8)}
+</style>
+</head>
+<body>
+
+<div id="app">
+<!-- ═══ TOP BAR ═══ -->
+<div class="topbar">
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+    <span>MiaoDraw</span>
+    <em>v1.0.1 Web</em>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost btn-sm" onclick="testConnection()" title="测试 API 连接">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      测试连接
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="refreshQuota()" title="查询配额">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      配额
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('settingsModal')" title="设置">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      设置
+    </button>
+  </div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+
+<!-- LEFT PANEL -->
+<div class="panel-l">
+  <div class="panel-tabs">
+    <div class="panel-tab on" data-ptab="generate" onclick="switchPTab(this)">生成</div>
+    <div class="panel-tab" data-ptab="edit" onclick="switchPTab(this)">编辑</div>
+    <div class="panel-tab hidden" data-ptab="queue" onclick="switchPTab(this)">队列</div>
+  </div>
+
+  <!-- TAB: GENERATE -->
+  <div class="panel-body" id="ptab-generate">
+    <div class="field">
+      <label class="field-label">提示词 Prompt</label>
+      <textarea id="promptInput" rows="4" placeholder="描述你想生成的图像…&#10;例：一只坐在月球上的猫咪，水彩风格，梦幻光线"></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">负面提示词 (可选)</label>
+      <input type="text" id="negPrompt" placeholder="不希望出现的内容…">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="field">
+        <label class="field-label">模型</label>
+        <select id="selModel">
+          <option value="gpt-image-2">GPT Image 2</option>
+          <option value="gpt-image-1">GPT Image 1</option>
+          <option value="dall-e-3">DALL-E 3</option>
+          <option value="dall-e-2">DALL-E 2</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">质量</label>
+        <select id="selQuality">
+          <option value="low">低 Low</option>
+          <option value="medium" selected>中 Medium</option>
+          <option value="high">高 High</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="field-label">尺寸</label>
+        <select id="selSize">
+          <option value="256x256">256×256</option>
+          <option value="512x512">512×512</option>
+          <option value="1024x1024" selected>1024×1024</option>
+          <option value="1024x1792">1024×1792 竖</option>
+          <option value="1792x1024">1792×1024 横</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">风格</label>
+        <select id="selStyle">
+          <option value="vivid">鲜艳 Vivid</option>
+          <option value="natural">自然 Natural</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">生成数量: <span id="numCountLabel">1</span></label>
+      <input type="range" id="numCount" min="1" max="4" value="1" oninput="document.getElementById('numCountLabel').textContent=this.value" style="width:100%">
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="btn btn-primary btn-lg" id="generateBtn" onclick="handleGenerate()" style="width:100%">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      生成图像
+    </button>
+    <div class="progress" id="progressBar" style="display:none"><div class="bar"></div></div>
+
+    <div class="divider"></div>
+
+  </div>
+
+  <!-- TAB: EDIT -->
+  <div class="panel-body hidden" id="ptab-edit">
+    <div class="field">
+      <label class="field-label">原图</label>
+      <div class="drop-zone" id="editImageDrop" tabindex="0">
+        <div class="drop-zone-hint" id="editImageHint">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          <span>粘贴图片 (Ctrl+V) 或拖拽到此处</span>
+        </div>
+        <img class="drop-zone-preview hidden" id="editImagePreview" alt="原图预览">
+        <button class="drop-zone-clear hidden" id="editImageClear" onclick="clearEditImage()">&times;</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">编辑提示词</label>
+      <textarea id="editPromptInput" rows="3" placeholder="描述你想做的修改…"></textarea>
+    </div>
+    <div class="divider"></div>
+    <button class="btn btn-primary btn-lg" id="editBtn" onclick="handleEdit()" style="width:100%">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      编辑图像
+    </button>
+    <div class="progress" id="editProgressBar" style="display:none"><div class="bar"></div></div>
+  </div>
+
+  <!-- TAB: QUEUE -->
+  <div class="panel-body hidden" id="ptab-queue">
+    <div class="field">
+      <label class="field-label">批量添加（每行一个 Prompt）</label>
+      <textarea id="queueInput" rows="3" placeholder="第一行 prompt&#10;第二行 prompt&#10;第三行 prompt"></textarea>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="addQueueFromInput()" style="width:100%;margin-bottom:12px">添加到队列</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span class="field-label" style="margin:0">待处理任务</span>
+      <button class="btn btn-ghost btn-sm" onclick="clearFinishedTasks()">清除已完成</button>
+    </div>
+    <div class="task-list" id="taskList"></div>
+    <div id="queueEmpty" style="padding:20px 0;text-align:center;color:var(--text3);font-size:12px">
+      队列为空
+    </div>
+  </div>
+</div>
+
+<!-- CENTER -->
+<div class="center">
+  <div class="center-toolbar">
+    <button class="btn-icon btn-ghost" onclick="zoomFit()" title="适应窗口">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    </button>
+    <button class="btn-icon btn-ghost" onclick="zoomActual()" title="原始尺寸">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+    </button>
+    <div class="sep"></div>
+    <button class="btn-icon btn-ghost" onclick="downloadCurrent()" title="下载当前图片">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <button class="btn-icon btn-ghost" onclick="copyImageUrl()" title="复制图片 URL">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+    <div class="sep"></div>
+    <button class="btn-icon btn-ghost" onclick="useAsEditRef()" title="用作编辑参考图">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+    </button>
+    <div style="flex:1"></div>
+    <span id="imageInfo" style="font-size:11px;color:var(--text3)"></span>
+  </div>
+
+  <div class="center-main" id="imageArea">
+    <div class="image-placeholder" id="imagePlaceholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <p>输入提示词并点击「生成图像」开始创作</p>
+      <p style="font-size:11px;color:var(--text3)">支持 GPT Image 2 / DALL-E 3 / DALL-E 2</p>
+    </div>
+    <div class="image-stage" id="imageStage" style="display:none">
+      <img id="mainImage" src="" alt="Generated image">
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="panel-r">
+  <div class="panel-r-header">
+    <h3>历史记录</h3>
+    <div style="display:flex;gap:4px;align-items:center">
+      <span class="count" id="historyCount">0</span>
+      <button class="btn btn-ghost btn-sm" onclick="clearHistory()" title="清空" style="padding:2px 6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="gallery" id="gallery"></div>
+</div>
+
+</div><!-- /main -->
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div style="display:flex;align-items:center">
+    <span class="status-dot idle" id="statusDot"></span>
+    <span id="statusText">就绪</span>
+  </div>
+  <div style="display:flex;gap:16px">
+    <span id="quotaInfo"></span>
+    <span id="apiInfo"></span>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- ═══ SETTINGS MODAL ═══ -->
+<div class="modal-mask" id="settingsModal">
+  <div class="modal">
+    <h2>API 设置</h2>
+    <div class="field">
+      <label class="field-label">API Base URL</label>
+      <input type="text" id="cfgBaseUrl" placeholder="https://api.openai.com/v1">
+    </div>
+    <div class="field">
+      <label class="field-label">API Key</label>
+      <input type="password" id="cfgApiKey" placeholder="sk-...">
+    </div>
+    <div style="margin-top:12px;padding:10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text3);line-height:1.6">
+      <strong>使用说明：</strong>填写 API Base URL 即可，系统会自动拼接接口路径。<br>例如填写 https://api.openai.com/v1，生图时自动请求 https://api.openai.com/v1/images/generations
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="clearAllSettings()" style="margin-right:auto">清除旧数据</button>
+      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">取消</button>
+      <button class="btn btn-sec" onclick="testConnection()">测试连接</button>
+      <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CUSTOM SIZE MODAL ═══ -->
+<div class="modal-mask" id="customSizeModal">
+  <div class="modal">
+    <h2>自定义尺寸</h2>
+    <div class="row">
+      <div class="field">
+        <label class="field-label">宽度 (px)</label>
+        <input type="number" id="customW" value="1024" min="256" max="4096" step="64">
+      </div>
+      <div style="padding-top:24px;color:var(--text3)">×</div>
+      <div class="field">
+        <label class="field-label">高度 (px)</label>
+        <input type="number" id="customH" value="1024" min="256" max="4096" step="64">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('customSizeModal')">取消</button>
+      <button class="btn btn-primary" onclick="applyCustomSize()">应用</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PREVIEW ═══ -->
+<div class="preview-mask" id="previewMask" onclick="this.classList.remove('on')">
+  <img id="previewImg" src="">
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast-box" id="toastBox"></div>
+
+<script>
+/*═══════════════════════════════════════════
+  STATE
+═══════════════════════════════════════════*/
+const S = {
+  settings: {
+    baseUrl: 'https://img.matsca.com/v1',
+    apiKey: ''
+  },
+  history: [],
+  tasks: [],
+  currentImage: null,   // {url, prompt, revisedPrompt, size, model, time}
+  generating: false,
+  editing: false,
+  taskIdCounter: 0,
+  editImage: null       // 粘贴/拖拽的原图 File
+};
+
+/*═══════════════════════════════════════════
+  INIT
+═══════════════════════════════════════════*/
+document.addEventListener('DOMContentLoaded', async () => {
+  loadSettings();
+  await loadHistory();
+  renderGallery();
+  renderTasks();
+  updateStatus('idle', '就绪');
+  refreshQuota();
+});
+
+/*═══════════════════════════════════════════
+  SETTINGS
+═══════════════════════════════════════════*/
+function loadSettings() {
+  try {
+    const d = JSON.parse(localStorage.getItem('md_settings') || '{}');
+    // 兼容旧版: 完整 apiUrl -> 截取 baseUrl
+    if (d.apiUrl && !d.baseUrl) {
+      d.baseUrl = d.apiUrl.replace(/\/(images\/generations|images\/edits).*$/, '');
+      delete d.apiUrl;
+    }
+    // 兼容更旧版本: baseUrl + imagePath
+    if (d.baseUrl && d.imagePath) {
+      d.baseUrl = d.baseUrl.replace(/\/+$/, '').replace(/\/images\/.*$/, '');
+      delete d.imagePath;
+      delete d.chatPath;
+      delete d.optModel;
+    }
+    delete d.apiUrl;
+    delete d.orgId;
+    Object.assign(S.settings, d);
+  } catch {}
+  applySettingsToUI();
+}
+
+function applySettingsToUI() {
+  $('cfgBaseUrl').value = S.settings.baseUrl;
+  $('cfgApiKey').value = S.settings.apiKey;
+  try { $('apiInfo').textContent = S.settings.baseUrl ? new URL(S.settings.baseUrl).hostname : ''; } catch {}
+}
+
+function saveSettings() {
+  S.settings.baseUrl = $('cfgBaseUrl').value.trim().replace(/\/+$/, '');
+  S.settings.apiKey = $('cfgApiKey').value.trim();
+  localStorage.setItem('md_settings', JSON.stringify(S.settings));
+  applySettingsToUI();
+  closeModal('settingsModal');
+  toast('设置已保存', 'success');
+  refreshQuota();
+}
+
+async function clearAllSettings() {
+  if (!confirm('清除所有本地设置和历史记录？')) return;
+  localStorage.removeItem('md_settings');
+  localStorage.removeItem('md_history_meta');
+  // 清除 IndexedDB
+  try {
+    const db = await openDB();
+    const tx = db.transaction('history', 'readwrite');
+    tx.objectStore('history').clear();
+    await new Promise(r => { tx.oncomplete = r; });
+    db.close();
+  } catch {}
+  S.settings = { baseUrl: 'https://img.matsca.com/v1', apiKey: '' };
+  S.history = [];
+  applySettingsToUI();
+  renderGallery();
+  toast('已清除，请重新配置', 'info');
+}
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + S.settings.apiKey };
+}
+
+// 根据 Base URL 自动拼接接口路径
+function getGenerationsUrl() {
+  return S.settings.baseUrl.replace(/\/+$/, '') + '/images/generations';
+}
+
+function getEditsUrl() {
+  return S.settings.baseUrl.replace(/\/+$/, '') + '/images/edits';
+}
+
+/*═══════════════════════════════════════════
+  API: TEST CONNECTION
+═══════════════════════════════════════════*/
+async function testConnection() {
+  if (S.testing) return;
+  if (!S.settings.apiKey) { toast('请先配置 API Key', 'error'); openModal('settingsModal'); return; }
+  S.testing = true;
+  try {
+    updateStatus('running', '正在测试连接…');
+    // 通过 models 列表接口验证 API 连通性，不会消耗额度
+    const modelsUrl = S.settings.baseUrl.replace(/\/+$/, '') + '/models';
+    const resp = await fetch(modelsUrl, {
+      method: 'GET',
+      headers: authHeaders()
+    });
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      if (location.protocol === 'file:') {
+        toast('连接失败：file:// 下浏览器可能阻止了请求，请通过 http://localhost 访问', 'error', 8000);
+      } else {
+        toast('连接失败：返回内容不是 JSON，请检查 API 地址是否正确', 'error');
+      }
+      updateStatus('err', '连接失败');
+      return;
+    }
+    if (resp.ok && data.data) {
+      const count = data.data.length;
+      toast(`连接成功！可用模型 ${count} 个`, 'success');
+      updateStatus('ok', '已连接');
+    } else {
+      const errMsg = data.error?.message || `HTTP ${resp.status}`;
+      toast(`API 返回错误: ${errMsg}`, 'warn');
+      updateStatus('err', `错误 ${resp.status}`);
+    }
+  } catch (e) {
+    toast(`连接错误: ${handleApiError(e)}`, 'error', 10000);
+    updateStatus('err', '连接错误');
+  } finally {
+    S.testing = false;
+  }
+}
+
+/*═══════════════════════════════════════════
+  API: QUOTA
+═══════════════════════════════════════════*/
+function getQuotaUrl() {
+  // 仅支持 img.matsca.com 的配额查询
+  try {
+    const url = new URL(S.settings.baseUrl);
+    if (url.hostname === 'img.matsca.com') {
+      return `https://img.matsca.com/api/redeem/key/check?key=${encodeURIComponent(S.settings.apiKey)}`;
+    }
+  } catch {}
+  return null;
+}
+
+async function refreshQuota() {
+  const quotaUrl = getQuotaUrl();
+  if (!quotaUrl) {
+    $('quotaInfo').textContent = '';
+    return;
+  }
+  if (!S.settings.apiKey) {
+    $('quotaInfo').textContent = '';
+    return;
+  }
+  try {
+    const resp = await fetch(quotaUrl, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Authorization': 'Bearer ' + S.settings.apiKey
+      }
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const remaining = data.remaining ?? '—';
+    const quota = data.quota ?? '—';
+    const used = data.quota_used ?? '—';
+    $('quotaInfo').innerHTML = `<span style="cursor:pointer" onclick="refreshQuota()" title="已用: ${used} / 总额: ${quota}&#10;点击刷新">配额: <b style="color:var(--ok)">${remaining}</b></span>`;
+  } catch (e) {
+    $('quotaInfo').innerHTML = `<span style="color:var(--err);cursor:pointer" onclick="refreshQuota()" title="点击重试">配额: 查询失败</span>`;
+  }
+}
+
+/*═══════════════════════════════════════════
+  GENERATE
+═══════════════════════════════════════════*/
+async function handleGenerate() {
+  if (!S.settings.apiKey) { toast('请先配置 API Key', 'error'); openModal('settingsModal'); return; }
+  if (S.generating) return;
+
+  const prompt = $('promptInput').value.trim();
+  if (!prompt) { toast('请输入提示词', 'warn'); return; }
+
+  // 多行 prompt 作为一个整体处理，不自动拆分成队列
+  // 如需批量请手动在队列页添加
+  const singlePrompt = prompt.replace(/\n+/g, ' ').trim();
+
+  try {
+    S.generating = true;
+    setGenerating(true);
+    updateStatus('running', '正在生成图像…');
+
+    const model = $('selModel').value;
+    const size = $('selSize').value;
+    const quality = $('selQuality').value;
+    const style = $('selStyle').value;
+    const n = parseInt($('numCount').value);
+
+    const body = { model, prompt: singlePrompt, n, size };
+    if (model === 'dall-e-3') { body.quality = quality === 'high' ? 'hd' : 'standard'; body.style = style; }
+    if (model === 'gpt-image-1' || model === 'gpt-image-2') { body.quality = quality; }
+
+    const resp = await fetch(getGenerationsUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      let errMsg = `HTTP ${resp.status}`;
+      try { errMsg = JSON.parse(errText).error?.message || errMsg; } catch {}
+      if (resp.status === 405) errMsg += `\n请求地址: ${getGenerationsUrl()}\n请在设置中重新填写正确的 API Base URL`;
+      throw new Error(errMsg);
+    }
+
+    const data = await resp.json();
+    const images = data.data || [];
+
+    for (const img of images) {
+      const url = img.url || (img.b64_json ? `data:image/png;base64,${img.b64_json}` : null);
+      if (!url) continue;
+      const item = { url, prompt: singlePrompt, revisedPrompt: img.revised_prompt || '', size, model, time: Date.now() };
+      S.history.unshift(item);
+      showImage(item);
+    }
+
+    saveHistory();
+    renderGallery();
+    updateStatus('ok', `生成完成 (${images.length} 张)`);
+    toast(`成功生成 ${images.length} 张图像`, 'success');
+    refreshQuota();
+  } catch (e) {
+    toast(`生成失败: ${handleApiError(e)}`, 'error', 10000);
+    updateStatus('err', '生成失败');
+  } finally {
+    S.generating = false;
+    setGenerating(false);
+  }
+}
+
+function setGenerating(on) {
+  const btn = $('generateBtn');
+  btn.disabled = on;
+  btn.innerHTML = on
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 生成中…'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 生成图像';
+  $('progressBar').style.display = on ? 'block' : 'none';
+}
+
+function setEditing(on) {
+  const btn = $('editBtn');
+  btn.disabled = on;
+  btn.innerHTML = on
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 编辑中…'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑图像';
+  $('editProgressBar').style.display = on ? 'block' : 'none';
+}
+
+/*═══════════════════════════════════════════
+  EDIT IMAGE
+═══════════════════════════════════════════*/
+async function handleEdit() {
+  if (S.editing) return;
+  if (!S.settings.apiKey) { toast('请先配置 API Key', 'error'); openModal('settingsModal'); return; }
+  const prompt = $('editPromptInput').value.trim();
+  if (!S.editImage) { toast('请粘贴或上传原图', 'warn'); return; }
+  if (!prompt) { toast('请输入编辑提示词', 'warn'); return; }
+
+  try {
+    S.editing = true;
+    setEditing(true);
+    updateStatus('running', '正在编辑图像…');
+
+    const fd = new FormData();
+    fd.append('model', $('selModel').value);
+    fd.append('image', S.editImage);
+    fd.append('prompt', prompt);
+    fd.append('n', '1');
+    fd.append('size', $('selSize').value);
+
+    const resp = await fetch(getEditsUrl(), {
+      method: 'POST',
+      headers: authHeaders(),
+      body: fd
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    for (const img of data.data || []) {
+      const url = img.url || (img.b64_json ? `data:image/png;base64,${img.b64_json}` : null);
+      if (!url) continue;
+      const item = { url, prompt: '[编辑] ' + prompt, revisedPrompt: '', size: $('selSize').value, model: $('selModel').value, time: Date.now() };
+      S.history.unshift(item);
+      showImage(item);
+    }
+
+    saveHistory();
+    renderGallery();
+    updateStatus('ok', '编辑完成');
+    toast('图像编辑成功', 'success');
+    refreshQuota();
+  } catch (e) {
+    toast(`编辑失败: ${handleApiError(e)}`, 'error', 10000);
+    updateStatus('err', '编辑失败');
+  } finally {
+    S.editing = false;
+    setEditing(false);
+  }
+}
+
+/*═══════════════════════════════════════════
+  EDIT: PASTE / DROP / PREVIEW
+═══════════════════════════════════════════*/
+// 将剪贴板/拖拽的图片设置为编辑原图
+function setEditImage(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  S.editImage = file;
+  const preview = $('editImagePreview');
+  const hint = $('editImageHint');
+  const clear = $('editImageClear');
+  const drop = $('editImageDrop');
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove('hidden');
+  hint.classList.add('hidden');
+  clear.classList.remove('hidden');
+  drop.classList.add('has-image');
+}
+
+function clearEditImage() {
+  S.editImage = null;
+  const preview = $('editImagePreview');
+  preview.classList.add('hidden');
+  if (preview.src) URL.revokeObjectURL(preview.src);
+  preview.src = '';
+  $('editImageHint').classList.remove('hidden');
+  $('editImageClear').classList.add('hidden');
+  $('editImageDrop').classList.remove('has-image');
+}
+
+// 全局粘贴监听：在编辑 tab 激活时捕获剪贴板图片
+document.addEventListener('paste', (e) => {
+  if ($('ptab-edit').classList.contains('hidden')) return;
+  const items = (e.clipboardData || {}).items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      setEditImage(item.getAsFile());
+      toast('已粘贴图片', 'success');
+      return;
+    }
+  }
+});
+
+// 拖拽支持
+function initDropZone(zoneId, onFile) {
+  const zone = $(zoneId);
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = (e.dataTransfer || {}).files?.[0];
+    if (file) onFile(file);
+  });
+}
+
+initDropZone('editImageDrop', (f) => { setEditImage(f); toast('已加载图片', 'success'); });
+
+/*═══════════════════════════════════════════
+  TASK QUEUE
+═══════════════════════════════════════════*/
+function addTasksToQueue(prompts) {
+  for (const p of prompts) {
+    S.tasks.push({
+      id: ++S.taskIdCounter,
+      prompt: p,
+      status: 'pending',  // pending | running | done | error
+      result: null,
+      error: null
+    });
+  }
+  renderTasks();
+  toast(`已添加 ${prompts.length} 个任务到队列`, 'info');
+}
+
+function addQueueFromInput() {
+  const text = $('queueInput').value.trim();
+  if (!text) { toast('请输入 Prompt', 'warn'); return; }
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) { toast('请输入至少一个 Prompt', 'warn'); return; }
+  addTasksToQueue(lines);
+  $('queueInput').value = '';
+  processQueue();
+}
+
+function renderTasks() {
+  const list = $('taskList');
+  const empty = $('queueEmpty');
+  if (S.tasks.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = S.tasks.map(t => `
+    <div class="task-item">
+      <div class="ti-status ${t.status}"></div>
+      <div class="ti-text" title="${esc(t.prompt)}">${esc(t.prompt)}</div>
+      <div class="ti-actions">
+        ${t.status === 'error' ? `<button class="btn btn-ghost btn-sm" onclick="retryTask(${t.id})" title="重试">↻</button>` : ''}
+        ${t.status === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})" title="移除">✕</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function processQueue() {
+  if (S.generating) return;
+  const pending = S.tasks.find(t => t.status === 'pending');
+  if (!pending) {
+    updateStatus('ok', '队列处理完成');
+    refreshQuota();
+    return;
+  }
+
+  S.generating = true;
+  pending.status = 'running';
+  renderTasks();
+  updateStatus('running', `正在处理: ${pending.prompt.slice(0, 30)}…`);
+
+  try {
+    const model = $('selModel').value;
+    const size = $('selSize').value;
+    const quality = $('selQuality').value;
+    const style = $('selStyle').value;
+
+    const body = { model, prompt: pending.prompt, n: 1, size };
+    if (model === 'dall-e-3') { body.quality = quality === 'high' ? 'hd' : 'standard'; body.style = style; }
+    if (model === 'gpt-image-1' || model === 'gpt-image-2') { body.quality = quality; }
+
+    const resp = await fetch(getGenerationsUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const img = (data.data || [])[0];
+    if (img) {
+      const url = img.url || (img.b64_json ? `data:image/png;base64,${img.b64_json}` : null);
+      if (url) {
+        const item = { url, prompt: pending.prompt, revisedPrompt: img.revised_prompt || '', size, model, time: Date.now() };
+        S.history.unshift(item);
+        showImage(item);
+        pending.status = 'done';
+        pending.result = url;
+      }
+    }
+    saveHistory();
+    renderGallery();
+  } catch (e) {
+    pending.status = 'error';
+    pending.error = e.message;
+    toast(`任务失败: ${e.message}`, 'error');
+  }
+
+  S.generating = false;
+  renderTasks();
+
+  // Process next
+  setTimeout(() => processQueue(), 500);
+}
+
+function retryTask(id) {
+  const t = S.tasks.find(t => t.id === id);
+  if (t) { t.status = 'pending'; t.error = null; renderTasks(); processQueue(); }
+}
+function removeTask(id) {
+  S.tasks = S.tasks.filter(t => t.id !== id);
+  renderTasks();
+}
+function clearFinishedTasks() {
+  S.tasks = S.tasks.filter(t => t.status === 'pending' || t.status === 'running');
+  renderTasks();
+}
+
+/*═══════════════════════════════════════════
+  IMAGE DISPLAY
+═══════════════════════════════════════════*/
+function showImage(item) {
+  S.currentImage = item;
+  $('imagePlaceholder').style.display = 'none';
+  $('imageStage').style.display = 'block';
+  $('mainImage').src = item.url;
+  $('imageInfo').textContent = `${item.size || ''} ${item.model || ''} ${item.revisedPrompt ? '· 已修正 Prompt' : ''}`;
+}
+
+function zoomFit() {
+  const img = $('mainImage');
+  img.style.maxWidth = '100%';
+  img.style.maxHeight = 'calc(100vh - 120px)';
+}
+function zoomActual() {
+  const img = $('mainImage');
+  img.style.maxWidth = 'none';
+  img.style.maxHeight = 'none';
+}
+
+function downloadCurrent() {
+  if (!S.currentImage) { toast('没有可下载的图片', 'warn'); return; }
+  const a = document.createElement('a');
+  a.href = S.currentImage.url;
+  a.download = `miaodraw_${Date.now()}.png`;
+  a.click();
+}
+
+function copyImageUrl() {
+  if (!S.currentImage) return;
+  navigator.clipboard.writeText(S.currentImage.url).then(() => toast('已复制 URL', 'info'));
+}
+
+function useAsEditRef() {
+  if (!S.currentImage) { toast('没有当前图片', 'warn'); return; }
+  // Switch to edit tab
+  switchPTab(document.querySelector('[data-ptab="edit"]'));
+  toast('请手动上传当前图片作为参考图（URL 图片无法直接传递）', 'info');
+}
+
+/*═══════════════════════════════════════════
+  HISTORY
+═══════════════════════════════════════════*/
+function renderGallery() {
+  const el = $('gallery');
+  el.innerHTML = S.history.map((h, i) => `
+    <div class="gallery-item" onclick="showPreview('${escAttr(h.url)}')">
+      <img src="${escAttr(h.url)}" alt="${escAttr(h.prompt)}" loading="lazy">
+      <div class="gi-overlay" onclick="event.stopPropagation()">
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();loadHistoryItem(${i})">加载</button>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();downloadHistoryItem(${i})">下载</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteHistoryItem(${i})">删除</button>
+      </div>
+      <div class="gi-prompt">${esc(h.prompt)}</div>
+    </div>
+  `).join('');
+  $('historyCount').textContent = S.history.length;
+}
+
+function loadHistoryItem(i) {
+  if (!S.history[i]) return;
+  showImage(S.history[i]);
+  // 复原当时的生成提示词
+  const p = S.history[i].prompt || '';
+  $('promptInput').value = p.replace(/^\[编辑\]\s*/, '');
+}
+function downloadHistoryItem(i) {
+  if (!S.history[i]) return;
+  const a = document.createElement('a');
+  a.href = S.history[i].url;
+  a.download = `miaodraw_${Date.now()}.png`;
+  a.click();
+}
+async function deleteHistoryItem(i) {
+  S.history.splice(i, 1);
+  await saveHistory();
+  renderGallery();
+}
+async function clearHistory() {
+  if (S.history.length === 0) return;
+  if (!confirm('确定清空所有历史记录？')) return;
+  S.history = [];
+  await saveHistory();
+  renderGallery();
+}
+
+/*═══════════════════════════════════════════
+  HISTORY STORAGE (IndexedDB)
+═══════════════════════════════════════════*/
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('miaodraw', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('history')) {
+        db.createObjectStore('history', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveHistory() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction('history', 'readwrite');
+    const store = tx.objectStore('history');
+    store.clear();
+    for (const item of S.history) {
+      store.put(item);
+    }
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = reject; });
+    db.close();
+  } catch {}
+}
+
+async function loadHistory() {
+  try {
+    // 先迁移旧版 localStorage 数据
+    const old = localStorage.getItem('md_history_meta');
+    if (old) {
+      const oldData = JSON.parse(old);
+      if (Array.isArray(oldData) && oldData.length > 0) {
+        S.history = oldData;
+        await saveHistory();
+        localStorage.removeItem('md_history_meta');
+      }
+    }
+    // 从 IndexedDB 加载
+    const db = await openDB();
+    const tx = db.transaction('history', 'readonly');
+    const store = tx.objectStore('history');
+    const req = store.getAll();
+    await new Promise((resolve, reject) => {
+      req.onsuccess = () => {
+        S.history = (req.result || []).reverse();
+        resolve();
+      };
+      req.onerror = reject;
+    });
+    db.close();
+  } catch { S.history = []; }
+}
+
+/*═══════════════════════════════════════════
+  TAB SWITCHING
+═══════════════════════════════════════════*/
+function switchPTab(el) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.panel-body').forEach(t => t.classList.add('hidden'));
+  el.classList.add('on');
+  const tab = el.dataset.ptab;
+  const body = $('ptab-' + tab);
+  if (body) body.classList.remove('hidden');
+}
+
+/*═══════════════════════════════════════════
+  MODALS
+═══════════════════════════════════════════*/
+function openModal(id) { $(id).classList.add('on'); }
+function closeModal(id) { $(id).classList.remove('on'); }
+
+/*═══════════════════════════════════════════
+  PREVIEW
+═══════════════════════════════════════════*/
+function showPreview(url) {
+  $('previewImg').src = url;
+  $('previewMask').classList.add('on');
+}
+
+/*═══════════════════════════════════════════
+  CUSTOM SIZE
+═══════════════════════════════════════════*/
+function applyCustomSize() {
+  const w = parseInt($('customW').value);
+  const h = parseInt($('customH').value);
+  if (w < 256 || h < 256 || w > 4096 || h > 4096) { toast('尺寸范围: 256-4096', 'warn'); return; }
+  // Add custom option to select
+  const sel = $('selSize');
+  const val = `${w}x${h}`;
+  let opt = Array.from(sel.options).find(o => o.value === val);
+  if (!opt) {
+    opt = new Option(`${w}×${h} (自定义)`, val);
+    sel.add(opt);
+  }
+  sel.value = val;
+  closeModal('customSizeModal');
+  toast(`已设置尺寸: ${w}×${h}`, 'info');
+}
+
+/*═══════════════════════════════════════════
+  STATUS
+═══════════════════════════════════════════*/
+function updateStatus(type, text) {
+  const dot = $('statusDot');
+  dot.className = 'status-dot ' + (type === 'running' ? 'ok' : type === 'ok' ? 'ok' : type === 'err' ? 'err' : 'idle');
+  $('statusText').textContent = text;
+}
+
+/*═══════════════════════════════════════════
+  TOAST
+═══════════════════════════════════════════*/
+function toast(msg, type = 'info', duration = 4000) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const icons = { success: '✓', error: '✕', warn: '⚠', info: 'ℹ' };
+  el.innerHTML = `<span>${icons[type] || ''}</span><span>${esc(msg).replace(/\n/g, '<br>')}</span>`;
+  $('toastBox').appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+
+/*═══════════════════════════════════════════
+  UTILS
+═══════════════════════════════════════════*/
+function $(id) { return document.getElementById(id); }
+function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return (s || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function handleApiError(e) {
+  if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('CORS')) {
+    return '浏览器跨域限制，请先启动本地服务器：\npython3 -m http.server 8080\n然后访问 http://localhost:8080/MiaoDraw.html';
+  }
+  return e.message;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    handleGenerate();
+  }
+});
+
+// Enter in prompt = generate
+$('promptInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    handleGenerate();
+  }
+});
+</script>
+</body>
+</html>
