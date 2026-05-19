@@ -2,8 +2,8 @@
 
 AI 图像生成工作坊，基于 OpenAI 兼容 API 的纯静态 Web 应用。
 
-喵绘生图购买店铺: https://pay.ldxp.cn/shop/dingdangmao
-描绘生图CDK兑换: https://img.matsca.com/redeem/
+#### 喵绘生图购买店铺: https://pay.ldxp.cn/shop/dingdangmao
+#### 描绘生图CDK兑换: https://img.matsca.com/redeem/
 
 ## 功能特性
 
