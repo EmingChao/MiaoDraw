@@ -649,7 +649,7 @@ async function refreshQuota() {
     const remaining = data.remaining ?? '—';
     const quota = data.quota ?? '—';
     const used = data.quota_used ?? '—';
-    $('quotaInfo').innerHTML = `<span style="cursor:pointer" onclick="refreshQuota()" title="已用: ${used} / 总额: ${quota}&#10;点击刷新">配额: <b style="color:var(--ok)">${remaining}</b></span>`;
+    $('quotaInfo').innerHTML = `<span style="cursor:pointer;white-space:nowrap" onclick="refreshQuota()" title="总额: ${quota}&#10;点击刷新">已用 <b style="color:var(--err)">${used}</b> / 剩余 <b style="color:var(--ok)">${remaining}</b></span>`;
   } catch (e) {
     $('quotaInfo').innerHTML = `<span style="color:var(--err);cursor:pointer" onclick="refreshQuota()" title="点击重试">配额: 查询失败</span>`;
   }
